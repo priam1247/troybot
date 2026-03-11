@@ -5,13 +5,31 @@ const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const yts = require('yt-search');
 const YTDlpWrap = require('yt-dlp-wrap').default;
 require('dotenv').config();
 
-// Point to yt-dlp.exe in the project folder
-const ytDlp = new YTDlpWrap(path.join(__dirname, 'yt-dlp.exe'));
+// ── Auto-detect platform and set yt-dlp path ─────────────
+const isWindows = os.platform() === 'win32';
+const ytDlpBin = isWindows
+  ? path.join(__dirname, 'yt-dlp.exe')
+  : '/usr/local/bin/yt-dlp';
+
+const ffmpegBin = isWindows ? __dirname : '/usr/bin';
+
+// On Linux (Railway), install yt-dlp if not present
+if (!isWindows && !fs.existsSync(ytDlpBin)) {
+  try {
+    console.log('Installing yt-dlp...');
+    execSync(`curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o ${ytDlpBin} && chmod a+rx ${ytDlpBin}`);
+    console.log('yt-dlp installed!');
+  } catch (err) {
+    console.error('Failed to install yt-dlp:', err.message);
+  }
+}
+
+const ytDlp = new YTDlpWrap(ytDlpBin);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -134,34 +152,49 @@ app.get('/api/download/song', async (req, res) => {
   const query = req.query.q;
   if (!query) return res.status(400).json({ error: 'Missing search query' });
 
+  const tmpDir = isWindows ? os.tmpdir() : '/tmp';
+  const tmpBase = path.join(tmpDir, `troy_${Date.now()}`);
+  const tmpFile = `${tmpBase}.mp3`;
+
   try {
     const results = await yts(query);
     const video = results.videos[0];
     if (!video) return res.status(404).json({ error: 'No results found' });
 
     const safeName = video.title.replace(/[^a-z0-9\s]/gi, '').trim().slice(0, 60) || 'song';
-    const tmpFile = path.join(os.tmpdir(), `troy_${Date.now()}.mp3`);
+
+    console.log(`Downloading song: ${video.url} to ${tmpFile}`);
+
+    await ytDlp.execPromise([
+      video.url,
+      '-x',
+      '--audio-format', 'mp3',
+      '--audio-quality', '0',
+      '--ffmpeg-location', ffmpegBin,
+      '-o', tmpFile,
+      '--no-playlist',
+      '--no-warnings',
+    ]);
+
+    if (!fs.existsSync(tmpFile)) {
+      throw new Error('Output file not created');
+    }
 
     res.setHeader('Content-Disposition', `attachment; filename="${safeName}.mp3"`);
     res.setHeader('Content-Type', 'audio/mpeg');
 
-    await ytDlp.execPromise([
-      video.url,
-      '-x', '--audio-format', 'mp3',
-      '--audio-quality', '0',
-      '--ffmpeg-location', __dirname,
-      '-o', tmpFile,
-      '--no-playlist',
-    ]);
-
     const stream = fs.createReadStream(tmpFile);
     stream.pipe(res);
-    stream.on('end', () => fs.unlink(tmpFile, () => {}));
-    stream.on('error', () => fs.unlink(tmpFile, () => {}));
+    stream.on('close', () => fs.unlink(tmpFile, () => {}));
+    stream.on('error', (e) => {
+      console.error('Stream error:', e.message);
+      fs.unlink(tmpFile, () => {});
+    });
 
   } catch (err) {
     console.error('Song download error:', err.message);
-    if (!res.headersSent) res.status(500).json({ error: 'Failed to download song.' });
+    try { fs.unlinkSync(tmpFile); } catch {}
+    if (!res.headersSent) res.status(500).json({ error: 'Failed to download song: ' + err.message });
   }
 });
 
@@ -170,33 +203,46 @@ app.get('/api/download/video', async (req, res) => {
   const query = req.query.q;
   if (!query) return res.status(400).json({ error: 'Missing search query' });
 
+  const tmpDir = isWindows ? os.tmpdir() : '/tmp';
+  const tmpFile = path.join(tmpDir, `troy_${Date.now()}.mp4`);
+
   try {
     const results = await yts(query);
     const video = results.videos[0];
     if (!video) return res.status(404).json({ error: 'No results found' });
 
     const safeName = video.title.replace(/[^a-z0-9\s]/gi, '').trim().slice(0, 60) || 'video';
-    const tmpFile = path.join(os.tmpdir(), `troy_${Date.now()}.mp4`);
 
-    res.setHeader('Content-Disposition', `attachment; filename="${safeName}.mp4"`);
-    res.setHeader('Content-Type', 'video/mp4');
+    console.log(`Downloading video: ${video.url} to ${tmpFile}`);
 
     await ytDlp.execPromise([
       video.url,
       '-f', 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
-      '--ffmpeg-location', __dirname,
+      '--ffmpeg-location', ffmpegBin,
       '-o', tmpFile,
       '--no-playlist',
+      '--no-warnings',
     ]);
+
+    if (!fs.existsSync(tmpFile)) {
+      throw new Error('Output file not created');
+    }
+
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}.mp4"`);
+    res.setHeader('Content-Type', 'video/mp4');
 
     const stream = fs.createReadStream(tmpFile);
     stream.pipe(res);
-    stream.on('end', () => fs.unlink(tmpFile, () => {}));
-    stream.on('error', () => fs.unlink(tmpFile, () => {}));
+    stream.on('close', () => fs.unlink(tmpFile, () => {}));
+    stream.on('error', (e) => {
+      console.error('Stream error:', e.message);
+      fs.unlink(tmpFile, () => {});
+    });
 
   } catch (err) {
     console.error('Video download error:', err.message);
-    if (!res.headersSent) res.status(500).json({ error: 'Failed to download video.' });
+    try { fs.unlinkSync(tmpFile); } catch {}
+    if (!res.headersSent) res.status(500).json({ error: 'Failed to download video: ' + err.message });
   }
 });
 
@@ -284,3 +330,4 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`🤖 Troy Bot server running on port ${PORT}`);
 });
+
