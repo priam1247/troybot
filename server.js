@@ -21,8 +21,9 @@ const ffmpegBin = isWindows ? __dirname : '/usr/bin';
 // On Linux (Railway), install yt-dlp if not present
 if (!isWindows && !fs.existsSync(ytDlpBin)) {
   try {
-    console.log('Installing yt-dlp...');
-    execSync(`curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o ${ytDlpBin} && chmod a+rx ${ytDlpBin}`);
+    console.log('Installing yt-dlp via pip...');
+    execSync(`pip3 install yt-dlp 2>/dev/null || pip install yt-dlp 2>/dev/null`);
+    execSync(`ln -sf $(which yt-dlp) ${ytDlpBin} 2>/dev/null || true`);
     console.log('yt-dlp installed!');
   } catch (err) {
     console.error('Failed to install yt-dlp:', err.message);
@@ -333,5 +334,3 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`🤖 Troy Bot server running on port ${PORT}`);
 });
-
-
