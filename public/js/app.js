@@ -154,8 +154,9 @@ async function sendCommand(command) {
 
     removeTyping();
 
-    if (data.downloadUrl && data.videoInfo) {
-      renderDownloadCard(data.videoInfo, data.downloadUrl);
+    if (data.videoInfo) {
+      if (data.botEntry) renderMessage(data.botEntry);
+      renderPlayerCard(data.videoInfo);
     } else if (data.botEntry) {
       renderMessage(data.botEntry);
     } else if (!res.ok) {
@@ -171,8 +172,84 @@ async function sendCommand(command) {
   commandInput.focus();
 }
 
-// ── Render download card ───────────────────────────────────
-function renderDownloadCard(info, downloadUrl) {
+// ── Cobalt download (browser calls cobalt directly — no Railway!) ──
+async function cobaltDownload(videoId, audioOnly, btnEl) {
+  const ytUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  const originalText = btnEl.textContent;
+  btnEl.textContent = '⏳ Getting link…';
+  btnEl.disabled = true;
+
+  // Cobalt v10 API — called directly from the browser
+  const COBALT_API = 'https://api.cobalt.tools/';
+
+  try {
+    const res = await fetch(COBALT_API, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        url: ytUrl,
+        downloadMode: audioOnly ? 'audio' : 'auto',
+        audioFormat: 'mp3',
+        filenameStyle: 'basic',
+        videoQuality: '720',
+      }),
+    });
+
+    if (!res.ok) throw new Error(`Cobalt API error: ${res.status}`);
+    const data = await res.json();
+    console.log('Cobalt response:', data);
+
+    // Handle different response statuses
+    if (data.status === 'tunnel' || data.status === 'redirect') {
+      triggerDownload(data.url);
+      btnEl.textContent = '✅ Starting download…';
+      setTimeout(() => { btnEl.textContent = originalText; btnEl.disabled = false; }, 4000);
+
+    } else if (data.status === 'picker') {
+      // Multiple streams — pick the best one
+      const best = data.picker?.find(p => p.type === 'audio') || data.picker?.[0];
+      if (best?.url) {
+        triggerDownload(best.url);
+        btnEl.textContent = '✅ Starting download…';
+        setTimeout(() => { btnEl.textContent = originalText; btnEl.disabled = false; }, 4000);
+      } else {
+        throw new Error('No download stream found');
+      }
+
+    } else if (data.status === 'error') {
+      throw new Error(data.error?.code || 'Cobalt error');
+
+    } else {
+      // Fallback — open cobalt web interface for this video
+      window.open(`https://cobalt.tools/#${encodeURIComponent(ytUrl)}`, '_blank');
+      btnEl.textContent = '↗ Opened Cobalt';
+      setTimeout(() => { btnEl.textContent = originalText; btnEl.disabled = false; }, 3000);
+    }
+
+  } catch (err) {
+    console.error('Cobalt error:', err.message);
+    // Fallback — open cobalt.tools website directly
+    window.open(`https://cobalt.tools/#${encodeURIComponent(ytUrl)}`, '_blank');
+    btnEl.textContent = '↗ Opened cobalt.tools';
+    setTimeout(() => { btnEl.textContent = originalText; btnEl.disabled = false; }, 3000);
+  }
+}
+
+function triggerDownload(url) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '';
+  a.target = '_blank';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+// ── Render YouTube player card ─────────────────────────────
+function renderPlayerCard(info) {
+  const videoId = info.videoId || '';
   const div = document.createElement('div');
   div.className = 'message bot-message';
   div.style.opacity = '0';
@@ -181,13 +258,24 @@ function renderDownloadCard(info, downloadUrl) {
       <span class="msg-source">TROY BOT</span>
       <span class="msg-time">${formatTime()}</span>
     </div>
-    <div class="download-card">
-      <img src="${escapeHtml(info.thumbnail)}" alt="thumbnail" class="dl-thumb" />
-      <div class="dl-info">
-        <div class="dl-title">${escapeHtml(info.title)}</div>
-        <div class="dl-meta">${escapeHtml(info.author)} · ${escapeHtml(info.duration)}</div>
-        <a href="${escapeHtml(downloadUrl)}" class="dl-btn" download>⬇ Download</a>
+    <div class="player-card">
+      <div class="player-title">${escapeHtml(info.title)}</div>
+      <div class="player-meta">${escapeHtml(info.author)} · ${escapeHtml(info.duration)}</div>
+      <div class="player-embed">
+        <iframe
+          src="https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1"
+          frameborder="0"
+          allow="autoplay; encrypted-media; fullscreen"
+          allowfullscreen
+        ></iframe>
       </div>
+      <div class="player-actions">
+        <button class="dl-btn" id="mp3-${videoId}">🎵 Download MP3</button>
+        <button class="dl-btn dl-btn-video" id="mp4-${videoId}">🎬 Download MP4</button>
+        <a href="https://www.youtube.com/watch?v=${videoId}" target="_blank" class="dl-btn dl-btn-alt">▶ YouTube</a>
+        <a href="https://cobalt.tools/#${encodeURIComponent('https://www.youtube.com/watch?v=${videoId}')}" target="_blank" class="dl-btn dl-btn-alt">🔗 cobalt.tools</a>
+      </div>
+      <div class="player-cobalt-note">⚡ Downloads powered by <strong>cobalt.tools</strong> — runs in your browser, not the server</div>
     </div>
   `;
   chatMessages.appendChild(div);
@@ -195,6 +283,14 @@ function renderDownloadCard(info, downloadUrl) {
   localCount++;
   msgCountEl.textContent = localCount;
   scrollToBottom();
+
+  // Wire up download buttons — browser calls cobalt directly, Railway not involved!
+  div.querySelector(`#mp3-${videoId}`).addEventListener('click', function() {
+    cobaltDownload(videoId, true, this);
+  });
+  div.querySelector(`#mp4-${videoId}`).addEventListener('click', function() {
+    cobaltDownload(videoId, false, this);
+  });
 }
 
 // ── Event listeners ────────────────────────────────────────
