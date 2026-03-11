@@ -34,6 +34,9 @@ const ytDlp = new YTDlpWrap(ytDlpBin);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust Railway's proxy
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet({
   contentSecurityPolicy: {
@@ -330,4 +333,5 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`🤖 Troy Bot server running on port ${PORT}`);
 });
+
 
