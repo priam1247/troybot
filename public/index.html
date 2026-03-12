@@ -72,8 +72,8 @@
               <span class="msg-time">NOW</span>
             </div>
             <div class="msg-content">
-              Hey commander! Type <kbd>.song [name]</kbd> to stream music from SoundCloud.
-              Try <kbd>/help</kbd> for all commands.
+              Hey commander! Click <kbd>&#8659; Load Music</kbd> to load songs from your device,
+              then use <kbd>.song [name]</kbd> to search and play. Type <kbd>/help</kbd> for all commands.
             </div>
           </div>
         </div>
@@ -81,8 +81,16 @@
         <form class="input-bar" id="commandForm" autocomplete="off">
           <span class="input-prefix">$&gt;</span>
           <input type="text" id="commandInput" class="command-input"
-            placeholder=".song westlife  or  /ping  or  /help"
+            placeholder=".song [name]  |  click &#8659; to load music  |  /help"
             maxlength="300" spellcheck="false" />
+          <button type="button" class="upload-music-btn" id="loadMusicBtn" title="Load music from device">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <span>Load Music</span>
+          </button>
           <button type="submit" class="btn-send" id="sendBtn">
             <span>SEND</span>
             <span class="btn-arrow">&#9654;</span>
@@ -99,7 +107,7 @@
             <button class="quick-btn" data-cmd="/help">/help</button>
             <button class="quick-btn" data-cmd="/ping">/ping</button>
             <button class="quick-btn" data-cmd="/status">/status</button>
-            <button class="quick-btn" data-cmd=".song westlife">.song</button>
+            <button class="quick-btn" data-cmd=".delete">.delete</button>
           </div>
         </div>
 
@@ -107,37 +115,37 @@
           <h2 class="card-title"><span class="card-title-icon">&#9835;</span> MUSIC COMMANDS</h2>
           <div class="music-commands">
             <div class="music-cmd-item">
-              <span class="music-cmd-tag">.song</span>
-              <span class="music-cmd-desc">Stream any song</span>
+              <span class="music-cmd-tag">.song [name]</span>
+              <span class="music-cmd-desc">Search local library</span>
             </div>
             <div class="music-cmd-item">
-              <span class="music-cmd-tag">next</span>
-              <span class="music-cmd-desc">Skip in queue</span>
+              <span class="music-cmd-tag">.local</span>
+              <span class="music-cmd-desc">Load music folder</span>
             </div>
             <div class="music-cmd-item">
-              <span class="music-cmd-tag">shuffle</span>
-              <span class="music-cmd-desc">Random play</span>
+              <span class="music-cmd-tag">&#9836; Lyrics</span>
+              <span class="music-cmd-desc">Auto-fetch lyrics</span>
+            </div>
+            <div class="music-cmd-item">
+              <span class="music-cmd-tag">&#9776; Queue</span>
+              <span class="music-cmd-desc">View all matches</span>
             </div>
           </div>
           <div class="music-visualizer">
-            <span class="mv-bar"></span>
-            <span class="mv-bar"></span>
-            <span class="mv-bar"></span>
-            <span class="mv-bar"></span>
-            <span class="mv-bar"></span>
-            <span class="mv-bar"></span>
-            <span class="mv-bar"></span>
-            <span class="mv-bar"></span>
+            <span class="mv-bar"></span><span class="mv-bar"></span>
+            <span class="mv-bar"></span><span class="mv-bar"></span>
+            <span class="mv-bar"></span><span class="mv-bar"></span>
+            <span class="mv-bar"></span><span class="mv-bar"></span>
           </div>
         </div>
 
         <div class="side-card">
           <h2 class="card-title"><span class="card-title-icon">&#9882;</span> SYSTEM INFO</h2>
           <ul class="info-list">
-            <li><span class="info-dot"></span><span class="info-key">Platform</span><span class="info-val">SoundCloud</span></li>
+            <li><span class="info-dot"></span><span class="info-key">Source</span><span class="info-val">Local Device</span></li>
+            <li><span class="info-dot"></span><span class="info-key">Lyrics</span><span class="info-val">lyrics.ovh</span></li>
             <li><span class="info-dot"></span><span class="info-key">Host</span><span class="info-val">Railway</span></li>
-            <li><span class="info-dot"></span><span class="info-key">Runtime</span><span class="info-val">Node.js 20</span></li>
-            <li><span class="info-dot"></span><span class="info-key">Version</span><span class="info-val">v2.0</span></li>
+            <li><span class="info-dot"></span><span class="info-key">Version</span><span class="info-val">v4.0</span></li>
           </ul>
         </div>
 
@@ -147,14 +155,13 @@
     <footer class="site-footer">
       <span>TROY BOT &copy; 2025</span>
       <span class="footer-sep">|</span>
-      <span>Powered by SoundCloud &amp; Node.js</span>
+      <span>Local Music Player</span>
       <span class="footer-sep">|</span>
       <a href="/api/status" target="_blank">API Status</a>
     </footer>
 
   </div>
 
-  <script src="https://w.soundcloud.com/player/api.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>
