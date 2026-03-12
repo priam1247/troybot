@@ -17,7 +17,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       scriptSrc: ["'self'", "'unsafe-inline'", "https://w.soundcloud.com"],
-      connectSrc: ["'self'"],
+      connectSrc: ["'self'", "https://w.soundcloud.com", "https://api.soundcloud.com", "https://api-v2.soundcloud.com"],
       imgSrc: ["'self'", "data:", "https:"],
       frameSrc: ["https://w.soundcloud.com"],
     },
@@ -102,7 +102,8 @@ async function getSCClientId() {
 // ── SoundCloud search using API ───────────────────────────
 async function searchSoundCloud(query) {
   const clientId = await getSCClientId();
-  const apiUrl = `https://api-v2.soundcloud.com/search/tracks?q=${encodeURIComponent(query)}&client_id=${clientId}&limit=5&offset=0`;
+  // Get 10 results so we can build a queue and skip restricted ones
+  const apiUrl = `https://api-v2.soundcloud.com/search/tracks?q=${encodeURIComponent(query)}&client_id=${clientId}&limit=10&offset=0`;
 
   const res = await fetch(apiUrl, {
     headers: { 'User-Agent': 'Mozilla/5.0' },
@@ -110,7 +111,6 @@ async function searchSoundCloud(query) {
   });
 
   if (!res.ok) {
-    // client_id might be expired, clear cache and throw
     scClientId = null;
     throw new Error(`SC API returned ${res.status}`);
   }
@@ -120,14 +120,35 @@ async function searchSoundCloud(query) {
     throw new Error('No tracks found');
   }
 
-  const track = data.collection[0];
+  // Filter: only tracks that are public and streamable (not geo-blocked previews)
+  const tracks = data.collection
+    .filter(t => t.streamable && t.policy !== 'BLOCK' && t.policy !== 'SNIP')
+    .slice(0, 8);
+
+  if (tracks.length === 0) {
+    throw new Error('No streamable tracks found — all results are geo-restricted');
+  }
+
+  // Build queue of tracks for next/prev
+  const queue = tracks.map(t => ({
+    title: t.title,
+    author: t.user?.username || 'Unknown',
+    trackUrl: t.permalink_url,
+    thumbnail: (t.artwork_url || t.user?.avatar_url || '').replace('large', 't300x300'),
+    duration: t.duration ? formatDuration(t.duration) : '',
+  }));
+
+  const first = queue[0];
+
+  // Use playlist-style embed URL with the full queue for continuous play
+  // This avoids the 30s preview cutoff that affects single track embeds
+  const playlistUrls = queue.map(t => encodeURIComponent(t.trackUrl)).join('&url=');
+  const embedSrc = `https://w.soundcloud.com/player/?url=${encodeURIComponent(first.trackUrl)}&color=%2300d4ff&auto_play=true&hide_related=true&show_comments=false&show_user=true&visual=true&buying=false&sharing=false&download=false&show_artwork=true&show_playcount=false&liking=false`;
+
   return {
-    title: track.title,
-    author: track.user?.username || 'Unknown',
-    trackUrl: track.permalink_url,
-    thumbnail: track.artwork_url || track.user?.avatar_url || '',
-    duration: track.duration ? formatDuration(track.duration) : '',
-    embedSrc: `https://w.soundcloud.com/player/?url=${encodeURIComponent(track.permalink_url)}&color=%2300d4ff&auto_play=true&hide_related=true&show_comments=false&show_user=true&visual=true`,
+    ...first,
+    embedSrc,
+    queue, // send full queue to frontend
   };
 }
 
@@ -156,6 +177,12 @@ app.post('/api/command', async (req, res) => {
   const trimmed = command.trim().slice(0, 300);
   const userEntry = addToLog('web', trimmed, 'command');
   const cmd = trimmed.toLowerCase();
+
+  // ── .delete ──────────────────────────────────────────────
+  if (cmd === '.delete') {
+    messageLog.length = 0;
+    return res.json({ userEntry, botEntry: addToLog('troy-bot', 'Chat cleared. Fresh start!', 'response'), cleared: true });
+  }
 
   // ── .song ────────────────────────────────────────────────
   if (cmd.startsWith('.song ')) {
@@ -211,7 +238,7 @@ async function forwardToDiscordBot(command) {
 
 function autoReply(command) {
   const cmd = command.toLowerCase();
-  if (cmd.startsWith('/help'))    return '📖 Commands: /help, /ping, /status\n🎵 Music: .song [name]';
+  if (cmd.startsWith('/help'))    return '📖 Commands: /help, /ping, /status | 🎵 Music: .song [name] | 🗑️ Chat: .delete';
   if (cmd.startsWith('/ping'))    return '🏓 Pong! Troy Bot is online and listening.';
   if (cmd.startsWith('/status'))  return `⚙️ Server uptime: ${Math.floor(process.uptime())}s. All systems nominal.`;
   if (cmd.startsWith('/say '))    return `📣 Echoing: "${command.slice(5)}"`;

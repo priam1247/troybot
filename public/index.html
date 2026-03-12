@@ -3,36 +3,43 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Troy Bot — Command Center</title>
+  <title>TROY BOT — Command Center</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;500;700;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
-  <!-- Animated grid background -->
-  <div class="grid-bg" aria-hidden="true"></div>
-  <div class="scanline" aria-hidden="true"></div>
+
+  <canvas id="particles"></canvas>
+  <div class="grid-bg"></div>
+  <div class="vignette"></div>
 
   <div class="app-shell">
 
-    <!-- ── HEADER ─────────────────────────── -->
+    <!-- HEADER -->
     <header class="site-header">
       <div class="header-left">
         <div class="bot-avatar" id="botAvatar">
-          <span class="avatar-ring"></span>
-          <span class="avatar-icon">⚡</span>
+          <div class="avatar-rings">
+            <span class="ring r1"></span>
+            <span class="ring r2"></span>
+            <span class="ring r3"></span>
+          </div>
+          <div class="avatar-core">
+            <span class="avatar-icon">&#9889;</span>
+          </div>
         </div>
         <div class="header-titles">
           <p class="welcome-line">WELCOME TO</p>
-          <h1 class="bot-name">TROY BOT</h1>
-          <p class="bot-tagline">Discord Command Interface</p>
+          <h1 class="bot-name">TROY<span class="name-accent">BOT</span></h1>
+          <p class="bot-tagline">&#9679; MUSIC COMMAND CENTER &#9679;</p>
         </div>
       </div>
       <div class="header-right">
         <div class="status-pill" id="statusPill">
           <span class="status-dot" id="statusDot"></span>
-          <span id="statusText">Connecting…</span>
+          <span id="statusLabel">Connecting...</span>
         </div>
         <div class="stat-block">
           <span class="stat-label">UPTIME</span>
@@ -45,121 +52,109 @@
       </div>
     </header>
 
-    <!-- ── MAIN LAYOUT ───────────────────── -->
+    <!-- MAIN -->
     <main class="main-grid">
 
-      <!-- Chat Panel -->
-      <section class="chat-panel" aria-label="Chat interface">
+      <!-- CHAT PANEL -->
+      <section class="chat-panel">
         <div class="panel-header">
-          <span class="panel-label">// LIVE FEED</span>
-          <button class="btn-clear" id="clearBtn" title="Clear messages">✕ CLEAR</button>
+          <div class="panel-header-left">
+            <div class="live-dot"></div>
+            <span class="panel-label">LIVE FEED</span>
+          </div>
+          <button class="btn-clear" id="clearBtn">CLEAR</button>
         </div>
 
-        <div class="chat-messages" id="chatMessages" role="log" aria-live="polite">
+        <div class="chat-messages" id="chatMessages">
           <div class="message bot-message intro-msg">
             <div class="msg-meta">
               <span class="msg-source">TROY BOT</span>
               <span class="msg-time">NOW</span>
             </div>
             <div class="msg-content">
-              👋 Welcome, commander. Type a command below or use <kbd>/help</kbd> to see what I can do.
-              I relay messages between this interface and Discord in real time.
+              Hey commander! Type <kbd>.song [name]</kbd> to stream music from SoundCloud.
+              Try <kbd>/help</kbd> for all commands.
             </div>
           </div>
         </div>
 
-        <!-- Input Bar -->
         <form class="input-bar" id="commandForm" autocomplete="off">
           <span class="input-prefix">$&gt;</span>
-          <input
-            type="text"
-            id="commandInput"
-            class="command-input"
-            placeholder="Enter command… e.g. /ping or /say Hello Discord"
-            maxlength="300"
-            aria-label="Command input"
-            spellcheck="false"
-          />
-          <button type="submit" class="btn-send" id="sendBtn" aria-label="Send command">
+          <input type="text" id="commandInput" class="command-input"
+            placeholder=".song westlife  or  /ping  or  /help"
+            maxlength="300" spellcheck="false" />
+          <button type="submit" class="btn-send" id="sendBtn">
             <span>SEND</span>
-            <span class="btn-arrow">▶</span>
+            <span class="btn-arrow">&#9654;</span>
           </button>
         </form>
       </section>
 
-      <!-- Side Panel -->
+      <!-- SIDE PANEL -->
       <aside class="side-panel">
 
-        <!-- Quick Commands -->
         <div class="side-card">
-          <h2 class="card-title">// QUICK COMMANDS</h2>
+          <h2 class="card-title"><span class="card-title-icon">&#9881;</span> QUICK COMMANDS</h2>
           <div class="quick-grid">
             <button class="quick-btn" data-cmd="/help">/help</button>
             <button class="quick-btn" data-cmd="/ping">/ping</button>
             <button class="quick-btn" data-cmd="/status">/status</button>
-            <button class="quick-btn" data-cmd="/discord">/discord</button>
+            <button class="quick-btn" data-cmd=".song westlife">.song</button>
           </div>
         </div>
 
-        <!-- Discord Bridge Info -->
-        <div class="side-card">
-          <h2 class="card-title">// DISCORD BRIDGE</h2>
-          <ul class="info-list">
-            <li>
-              <span class="info-icon">🔗</span>
-              <div>
-                <strong>Bot Host</strong>
-                <span>Katamump</span>
-              </div>
-            </li>
-            <li>
-              <span class="info-icon">🌐</span>
-              <div>
-                <strong>Web Host</strong>
-                <span>Render</span>
-              </div>
-            </li>
-            <li>
-              <span class="info-icon">🔒</span>
-              <div>
-                <strong>Auth</strong>
-                <span>Shared Secret</span>
-              </div>
-            </li>
-            <li>
-              <span class="info-icon">⚡</span>
-              <div>
-                <strong>Protocol</strong>
-                <span>REST Webhooks</span>
-              </div>
-            </li>
-          </ul>
+        <div class="side-card music-card">
+          <h2 class="card-title"><span class="card-title-icon">&#9835;</span> MUSIC COMMANDS</h2>
+          <div class="music-commands">
+            <div class="music-cmd-item">
+              <span class="music-cmd-tag">.song</span>
+              <span class="music-cmd-desc">Stream any song</span>
+            </div>
+            <div class="music-cmd-item">
+              <span class="music-cmd-tag">next</span>
+              <span class="music-cmd-desc">Skip in queue</span>
+            </div>
+            <div class="music-cmd-item">
+              <span class="music-cmd-tag">shuffle</span>
+              <span class="music-cmd-desc">Random play</span>
+            </div>
+          </div>
+          <div class="music-visualizer">
+            <span class="mv-bar"></span>
+            <span class="mv-bar"></span>
+            <span class="mv-bar"></span>
+            <span class="mv-bar"></span>
+            <span class="mv-bar"></span>
+            <span class="mv-bar"></span>
+            <span class="mv-bar"></span>
+            <span class="mv-bar"></span>
+          </div>
         </div>
 
-        <!-- How It Works -->
         <div class="side-card">
-          <h2 class="card-title">// HOW IT WORKS</h2>
-          <ol class="flow-list">
-            <li><span class="flow-num">01</span> You type a command here</li>
-            <li><span class="flow-num">02</span> Server forwards it to Discord bot</li>
-            <li><span class="flow-num">03</span> Bot executes and responds</li>
-            <li><span class="flow-num">04</span> Response appears in this feed</li>
-          </ol>
+          <h2 class="card-title"><span class="card-title-icon">&#9882;</span> SYSTEM INFO</h2>
+          <ul class="info-list">
+            <li><span class="info-dot"></span><span class="info-key">Platform</span><span class="info-val">SoundCloud</span></li>
+            <li><span class="info-dot"></span><span class="info-key">Host</span><span class="info-val">Railway</span></li>
+            <li><span class="info-dot"></span><span class="info-key">Runtime</span><span class="info-val">Node.js 20</span></li>
+            <li><span class="info-dot"></span><span class="info-key">Version</span><span class="info-val">v2.0</span></li>
+          </ul>
         </div>
 
       </aside>
     </main>
 
     <footer class="site-footer">
-      <span>TROY BOT © 2025</span>
+      <span>TROY BOT &copy; 2025</span>
       <span class="footer-sep">|</span>
-      <span>Built with Node.js · Express · Discord.js</span>
+      <span>Powered by SoundCloud &amp; Node.js</span>
       <span class="footer-sep">|</span>
-      <a href="/api/status" target="_blank" rel="noopener">API Status</a>
+      <a href="/api/status" target="_blank">API Status</a>
     </footer>
 
   </div>
 
+  <script src="https://w.soundcloud.com/player/api.js"></script>
   <script src="/js/app.js"></script>
 </body>
 </html>
